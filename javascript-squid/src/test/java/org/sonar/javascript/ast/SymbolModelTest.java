@@ -20,12 +20,13 @@
 package org.sonar.javascript.ast;
 
 import static org.fest.assertions.Assertions.assertThat;
+
+import java.io.File;
+
 import org.junit.Test;
 import org.sonar.javascript.ast.resolve.SymbolModel;
 import org.sonar.javascript.model.JavaScriptTreeModelTest;
 import org.sonar.javascript.model.interfaces.declaration.ScriptTree;
-
-import java.io.File;
 
 public abstract class SymbolModelTest extends JavaScriptTreeModelTest {
 
