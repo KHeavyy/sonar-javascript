@@ -35,11 +35,6 @@ public class InitializedBindingElementTreeModelTest extends JavaScriptTreeModelT
   @Test
   public void test_identifier() throws Exception {
     InitializedBindingElementTree tree = parse("var a = 1", Kind.INITIALIZED_BINDING_ELEMENT);
-
-    assertThat(tree.is(Kind.INITIALIZED_BINDING_ELEMENT)).isTrue();
-    assertThat(expressionToString(tree.left())).isEqualTo("a");
-    assertThat(tree.equalToken().text()).isEqualTo("=");
-    assertThat(expressionToString(tree.right())).isEqualTo("1");
   }
 
   @Test
