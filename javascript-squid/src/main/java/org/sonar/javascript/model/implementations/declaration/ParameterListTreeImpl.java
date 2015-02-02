@@ -30,6 +30,7 @@ import org.sonar.javascript.model.implementations.lexical.InternalSyntaxToken;
 import org.sonar.javascript.model.interfaces.Tree;
 import org.sonar.javascript.model.interfaces.declaration.ParameterListTree;
 import org.sonar.javascript.model.interfaces.expression.IdentifierTree;
+import org.sonar.javascript.model.interfaces.expression.RestElementTree;
 import org.sonar.javascript.model.interfaces.lexical.SyntaxToken;
 
 import com.google.common.collect.Iterators;
@@ -117,6 +118,9 @@ public class ParameterListTreeImpl extends JavaScriptTree implements ParameterLi
 
       } else if (parameter.is(Tree.Kind.OBJECT_BINDING_PATTERN)) {
         identifiers.addAll(((ObjectBindingPatternTreeImpl) parameter).bindingIdentifiers());
+
+      } else if (parameter.is(Kind.REST_ELEMENT)) {
+        identifiers.add((IdentifierTree) ((RestElementTree) parameter).element());
 
       } else {
         identifiers.addAll(((ArrayBindingPatternTreeImpl) parameter).bindingIdentifiers());

@@ -25,10 +25,8 @@ import java.util.List;
 
 import org.junit.Test;
 import org.sonar.javascript.model.JavaScriptTreeModelTest;
-import org.sonar.javascript.model.implementations.declaration.ArrayBindingPatternTreeImpl;
 import org.sonar.javascript.model.implementations.declaration.InitializedBindingElementTreeImpl;
 import org.sonar.javascript.model.interfaces.Tree.Kind;
-import org.sonar.javascript.model.interfaces.declaration.ArrayBindingPatternTree;
 import org.sonar.javascript.model.interfaces.declaration.InitializedBindingElementTree;
 import org.sonar.javascript.model.interfaces.expression.IdentifierTree;
 
@@ -36,7 +34,7 @@ public class InitializedBindingElementTreeModelTest extends JavaScriptTreeModelT
 
   @Test
   public void test_identifier() throws Exception {
-    InitializedBindingElementTree tree = parse("a = 1", Kind.INITIALIZED_BINDING_ELEMENT);
+    InitializedBindingElementTree tree = parse("var a = 1", Kind.INITIALIZED_BINDING_ELEMENT);
 
     assertThat(tree.is(Kind.INITIALIZED_BINDING_ELEMENT)).isTrue();
     assertThat(expressionToString(tree.left())).isEqualTo("a");
@@ -46,7 +44,7 @@ public class InitializedBindingElementTreeModelTest extends JavaScriptTreeModelT
 
   @Test
   public void test_binding_pattern() throws Exception {
-    InitializedBindingElementTree tree = parse("{ a : x } = 1", Kind.INITIALIZED_BINDING_ELEMENT);
+    InitializedBindingElementTree tree = parse("var { a : x } = 1", Kind.INITIALIZED_BINDING_ELEMENT);
 
     assertThat(tree.is(Kind.INITIALIZED_BINDING_ELEMENT)).isTrue();
     assertThat(expressionToString(tree.left())).isEqualTo("{ a : x }");
