@@ -20,7 +20,7 @@
 package org.sonar.javascript.ast.resolve;
 
 import org.sonar.javascript.api.SymbolModelBuilder;
-import org.sonar.javascript.ast.visitors.BaseTreeVisitor;
+import org.sonar.plugins.javascript.api.visitors.BaseTreeVisitor;
 import org.sonar.javascript.model.internal.declaration.InitializedBindingElementTreeImpl;
 import org.sonar.javascript.model.internal.declaration.ParameterListTreeImpl;
 import org.sonar.javascript.model.internal.expression.ArrowFunctionTreeImpl;

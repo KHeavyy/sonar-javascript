@@ -23,7 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.sonar.api.source.Symbolizable;
-import org.sonar.javascript.api.SymbolModel;
+import org.sonar.plugins.javascript.api.SymbolModel;
 import org.sonar.javascript.api.SymbolModelBuilder;
 import org.sonar.javascript.highlighter.SourceFileOffsets;
 import org.sonar.plugins.javascript.api.tree.declaration.ScriptTree;

@@ -17,29 +17,33 @@
  * License along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
  */
-package org.sonar.javascript.api;
+package org.sonar.plugins.javascript.api;
 
-import org.sonar.javascript.ast.resolve.Symbol;
+import com.google.common.annotations.Beta;
+import org.sonar.plugins.javascript.api.tree.Tree;
+import org.sonar.plugins.javascript.api.tree.declaration.ScriptTree;
 
-import java.util.Set;
+import java.io.File;
 
-public interface SymbolModel {
-  /**
-   * Returns all symbols in script
-   */
-  Set<Symbol> getSymbols();
+@Beta
+public interface AstTreeVisitorContext {
 
-  /**
-   *
-   * @param kind kind of symbols to look for
-   * @return list of symbols with the given kind
-   */
-  Set<Symbol> getSymbols(Symbol.Kind kind);
+  ScriptTree getTree();
 
-  /**
-   *
-   * @param name name of symbols to look for
-   * @return list of symbols with the given name
-   */
-  Set<Symbol> getSymbols(String name);
+  void addIssue(JavaScriptCheck check, Tree tree, String message);
+
+  void addIssue(JavaScriptCheck check, int line, String message);
+
+  void addIssue(JavaScriptCheck check, Tree tree, String message, double cost);
+
+  void addIssue(JavaScriptCheck check, int line, String message, double cost);
+
+  String getFileKey();
+
+  File getFile();
+
+  SymbolModel getSymbolModel();
+
+  String[] getPropertyValues(String name);
+
 }

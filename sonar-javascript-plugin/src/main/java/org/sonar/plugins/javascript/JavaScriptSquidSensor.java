@@ -19,8 +19,13 @@
  */
 package org.sonar.plugins.javascript;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
+import java.util.Collection;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonar.api.batch.DependedUpon;
@@ -49,12 +54,13 @@ import org.sonar.api.scan.filesystem.PathResolver;
 import org.sonar.api.source.Highlightable;
 import org.sonar.javascript.EcmaScriptConfiguration;
 import org.sonar.javascript.JavaScriptAstScanner;
-import org.sonar.plugins.javascript.api.JavaScriptFileScanner;
 import org.sonar.javascript.api.EcmaScriptMetric;
 import org.sonar.javascript.ast.visitors.VisitorsBridge;
 import org.sonar.javascript.checks.CheckList;
 import org.sonar.javascript.highlighter.JavaScriptHighlighter;
 import org.sonar.javascript.metrics.FileLinesVisitor;
+import org.sonar.plugins.javascript.api.CustomJavaScriptRulesDefinition;
+import org.sonar.plugins.javascript.api.JavaScriptFileScanner;
 import org.sonar.plugins.javascript.core.JavaScript;
 import org.sonar.squidbridge.AstScanner;
 import org.sonar.squidbridge.SquidAstVisitor;
@@ -68,11 +74,9 @@ import org.sonar.squidbridge.indexer.QueryByParent;
 import org.sonar.squidbridge.indexer.QueryByType;
 import org.sonar.sslr.parser.LexerlessGrammar;
 
-import javax.annotation.Nullable;
-import java.util.Collection;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 public class JavaScriptSquidSensor implements Sensor {
 
@@ -88,6 +92,7 @@ public class JavaScriptSquidSensor implements Sensor {
   private static final Number[] FILES_DISTRIB_BOTTOM_LIMITS = {0, 5, 10, 20, 30, 60, 90};
 
   private final Checks<CodeVisitor> checks;
+  private final List<JavaScriptFileScanner> customVisitors;
   private final FileLinesContextFactory fileLinesContextFactory;
   private final ResourcePerspectives resourcePerspectives;
   private final FileSystem fileSystem;
@@ -101,9 +106,17 @@ public class JavaScriptSquidSensor implements Sensor {
 
   public JavaScriptSquidSensor(CheckFactory checkFactory, FileLinesContextFactory fileLinesContextFactory,
     ResourcePerspectives resourcePerspectives, FileSystem fileSystem, NoSonarFilter noSonarFilter, PathResolver pathResolver, Settings settings) {
+    this(checkFactory, fileLinesContextFactory, resourcePerspectives, fileSystem, noSonarFilter, pathResolver, settings, null);
+  }
+
+  public JavaScriptSquidSensor(CheckFactory checkFactory, FileLinesContextFactory fileLinesContextFactory,
+    ResourcePerspectives resourcePerspectives, FileSystem fileSystem, NoSonarFilter noSonarFilter,
+    PathResolver pathResolver, Settings settings, @Nullable CustomJavaScriptRulesDefinition[] customRulesDefinition) {
+
     this.checks = checkFactory
       .<CodeVisitor>create(CheckList.REPOSITORY_KEY)
       .addAnnotatedChecks(CheckList.getChecks());
+    this.customVisitors = getCustomChecks(checkFactory, customRulesDefinition);
     this.fileLinesContextFactory = fileLinesContextFactory;
     this.resourcePerspectives = resourcePerspectives;
     this.fileSystem = fileSystem;
@@ -134,6 +147,8 @@ public class JavaScriptSquidSensor implements Sensor {
         astNodeVisitors.add(visitor);
       }
     }
+    // Add custom visitors
+    treeVisitors.addAll(customVisitors);
 
     astNodeVisitors.add(new VisitorsBridge(treeVisitors, resourcePerspectives, fileSystem, settings));
     astNodeVisitors.add(new FileLinesVisitor(fileLinesContextFactory, fileSystem, pathResolver));
@@ -149,22 +164,18 @@ public class JavaScriptSquidSensor implements Sensor {
 
   private void highlight() {
     JavaScriptHighlighter highlighter = new JavaScriptHighlighter(createConfiguration());
+
     for (InputFile inputFile : fileSystem.inputFiles(mainFilePredicate)){
-      highlighter.highlight(perspective(Highlightable.class, inputFile), inputFile.file());
+      Highlightable perspective = resourcePerspectives.as(Highlightable.class, inputFile);
+
+      if (perspective != null) {
+        highlighter.highlight(perspective, inputFile.file());
+
+      } else {
+        LOG.warn("Could not get " + Highlightable.class.getCanonicalName() + " for " + inputFile.file());
+      }
     }
   }
-
-  <P extends Perspective<?>> P perspective(Class<P> clazz, @Nullable InputFile file) {
-    if (file == null) {
-      throw new IllegalArgumentException("Cannot get " + clazz.getCanonicalName() + "for a null file");
-    }
-    P result = resourcePerspectives.as(clazz, file);
-    if (result == null) {
-      throw new IllegalStateException("Could not get " + clazz.getCanonicalName() + " for " + file);
-    }
-    return result;
-  }
-
   private EcmaScriptConfiguration createConfiguration() {
     return new EcmaScriptConfiguration(fileSystem.encoding());
   }
@@ -251,6 +262,22 @@ public class JavaScriptSquidSensor implements Sensor {
         }
       }
     }
+  }
+
+  @VisibleForTesting
+  protected List<JavaScriptFileScanner> getCustomChecks(CheckFactory checkFactory, @Nullable CustomJavaScriptRulesDefinition[] customRulesDefinition) {
+    List<JavaScriptFileScanner> customVisitors = Lists.newArrayList();
+
+    if (customRulesDefinition != null) {
+      for (CustomJavaScriptRulesDefinition rulesDefinition : customRulesDefinition) {
+
+        customVisitors.addAll(
+          checkFactory.<JavaScriptFileScanner>create(rulesDefinition.repositoryKey())
+            .addAnnotatedChecks(rulesDefinition.checkClasses())
+            .all());
+      }
+    }
+    return customVisitors;
   }
 
   @Override
