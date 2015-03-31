@@ -19,14 +19,16 @@
  */
 package org.sonar.javascript.ast.resolve;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.sonar.javascript.model.interfaces.Tree;
 import org.sonar.javascript.model.interfaces.declaration.ScriptTree;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 public class SymbolModel {
@@ -52,7 +54,8 @@ public class SymbolModel {
   public static class Scope {
 
     private Scope outer;
-    protected ArrayListMultimap<String, Symbol> symbols = ArrayListMultimap.create();
+    protected Map<String, Symbol> symbols = Maps.newHashMap();
+    // FIXME martin: shouldn't it be named inner ?
     private Scope next;
 
     public Scope(Scope outer) {
@@ -71,46 +74,60 @@ public class SymbolModel {
       this.next = next;
     }
 
+    /**
+     * Add the symbol to the current scope.
+     */
     public void addSymbolToScope(String name, Tree tree) {
-      symbols.put(name, new Symbol(name, tree));
+      Symbol redefinedSymbol =  symbols.get(name);
+
+      if (redefinedSymbol != null) {
+        redefinedSymbol.declarations().add(tree);
+
+      } else {
+        symbols.put(name, new Symbol(name, tree));
+      }
     }
 
-    public List<Symbol> lookupSymbol(String name) {
+    public Symbol lookupSymbol(String name) {
       Scope scope = this;
       while (scope != null && !scope.symbols.containsKey(name)) {
         scope = scope.outer;
       }
-      return scope == null ? ImmutableList.<Symbol>of() : scope.symbols.get(name);
+      return scope == null ? null : scope.symbols.get(name);
     }
 
+    public Collection<Symbol> allSymbols() {
+      return symbols.values();
+    }
+
+    public Scope globalScope() {
+      Scope scope = this;
+
+      while (scope.outer != null) {
+        scope = scope.outer;
+      }
+
+      return scope;
+    }
   }
 
   public static class Symbol {
     private final String name;
-    private final Tree tree;
-    private int usage;
+    private List<Tree> declarations = Lists.newArrayList();
 
-    public Symbol(String name, Tree tree) {
+    public Symbol(String name, Tree declaration) {
       this.name = name;
-      this.tree = tree;
-      this.usage = 0;
+      this.declarations.add(declaration);
     }
 
     public String name() {
       return name;
     }
 
-    public Tree tree() {
-      return tree;
+    public List<Tree> declarations() {
+      return declarations;
     }
 
-    public int usage() {
-      return usage;
-    }
-
-    public void increaseUsage() {
-      usage++;
-    }
   }
 
 }
