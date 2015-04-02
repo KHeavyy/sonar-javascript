@@ -34,6 +34,10 @@ public interface AstTreeVisitorContext {
 
   void addIssue(CodeVisitor check, int line, String message);
 
+  void addIssue(CodeVisitor check, Tree tree, String message, double cost);
+
+  void addIssue(CodeVisitor check, int line, String message, double cost);
+
   String getFileKey();
 
   File getFile();

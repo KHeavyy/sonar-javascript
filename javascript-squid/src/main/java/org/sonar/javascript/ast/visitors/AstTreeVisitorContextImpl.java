@@ -21,6 +21,7 @@ package org.sonar.javascript.ast.visitors;
 
 import java.io.File;
 
+import com.google.common.base.Preconditions;
 import org.sonar.javascript.ast.resolve.SymbolModel;
 import org.sonar.javascript.model.implementations.JavaScriptTree;
 import org.sonar.javascript.model.interfaces.Tree;
@@ -29,7 +30,7 @@ import org.sonar.squidbridge.api.CheckMessage;
 import org.sonar.squidbridge.api.CodeVisitor;
 import org.sonar.squidbridge.api.SourceFile;
 
-import com.google.common.base.Preconditions;
+import java.io.File;
 
 public class AstTreeVisitorContextImpl implements AstTreeVisitorContext {
   private final ScriptTree tree;
@@ -51,21 +52,22 @@ public class AstTreeVisitorContextImpl implements AstTreeVisitorContext {
 
   @Override
   public void addIssue(CodeVisitor check, Tree tree, String message) {
-    addIssue(check, ((JavaScriptTree) tree).getLine(), message);
+    commonAddIssue(check, getLine(tree), message, -1);
   }
 
   @Override
   public void addIssue(CodeVisitor check, int line, String message) {
-    Preconditions.checkNotNull(check);
-    Preconditions.checkNotNull(message);
+    commonAddIssue(check, line, message, -1);
+  }
 
-    CheckMessage checkMessage = new CheckMessage(check, message);
+  @Override
+  public void addIssue(CodeVisitor check, Tree tree, String message, double cost){
+    commonAddIssue(check, getLine(tree), message, cost);
+  }
 
-    if (line > 0) {
-      checkMessage.setLine(line);
-    }
-
-    sourceFile.log(checkMessage);
+  @Override
+  public void addIssue(CodeVisitor check, int line, String message, double cost){
+    commonAddIssue(check, line, message, cost);
   }
 
   @Override
@@ -82,4 +84,28 @@ public class AstTreeVisitorContextImpl implements AstTreeVisitorContext {
   public SymbolModel getSymbolModel() {
     return symbolModel;
   }
+
+  /**
+   * Cost is set if <code>cost<code/> is more than zero.
+   * */
+  private void commonAddIssue(CodeVisitor check, int line, String message, double cost){
+    Preconditions.checkNotNull(check);
+    Preconditions.checkNotNull(message);
+
+    CheckMessage checkMessage = new CheckMessage(check, message);
+    if (cost > 0) {
+      checkMessage.setCost(cost);
+    }
+
+    if (line > 0) {
+      checkMessage.setLine(line);
+    }
+
+    sourceFile.log(checkMessage);
+  }
+
+  private int getLine(Tree tree) {
+    return ((JavaScriptTree)tree).getLine();
+  }
+
 }
