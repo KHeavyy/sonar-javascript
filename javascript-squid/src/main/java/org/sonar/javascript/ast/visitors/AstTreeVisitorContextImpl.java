@@ -21,6 +21,7 @@ package org.sonar.javascript.ast.visitors;
 
 import java.io.File;
 
+import org.sonar.javascript.ast.resolve.SymbolModel;
 import org.sonar.javascript.model.implementations.JavaScriptTree;
 import org.sonar.javascript.model.interfaces.Tree;
 import org.sonar.javascript.model.interfaces.declaration.ScriptTree;
@@ -34,11 +35,13 @@ public class AstTreeVisitorContextImpl implements AstTreeVisitorContext {
   private final ScriptTree tree;
   private final SourceFile sourceFile;
   private final File file;
+  private final SymbolModel symbolModel;
 
-  public AstTreeVisitorContextImpl(ScriptTree tree, SourceFile sourceFile, File file) {
+  public AstTreeVisitorContextImpl(ScriptTree tree, SourceFile sourceFile, File file, SymbolModel symbolModel) {
     this.tree = tree;
     this.sourceFile = sourceFile;
     this.file = file;
+    this.symbolModel = symbolModel;
   }
 
   @Override
@@ -75,4 +78,8 @@ public class AstTreeVisitorContextImpl implements AstTreeVisitorContext {
     return file;
   }
 
+  @Override
+  public SymbolModel getSymbolModel() {
+    return symbolModel;
+  }
 }

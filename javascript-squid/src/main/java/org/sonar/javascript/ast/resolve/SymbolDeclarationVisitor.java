@@ -60,7 +60,9 @@ public class SymbolDeclarationVisitor extends BaseTreeVisitor {
   // FIXME: class are not properly handle
   @Override
   public void visitClassDeclaration(ClassTree tree) {
-    addSymbol(tree.name().name(), tree);
+    if (tree.name() != null) {
+      addSymbol(tree.name().name(), tree);
+    }
     newScope(tree);
 
     super.visitClassDeclaration(tree);

@@ -21,6 +21,7 @@ package org.sonar.javascript.ast.visitors;
 
 import java.io.File;
 
+import org.sonar.javascript.ast.resolve.SymbolModel;
 import org.sonar.javascript.model.interfaces.Tree;
 import org.sonar.javascript.model.interfaces.declaration.ScriptTree;
 import org.sonar.squidbridge.api.CodeVisitor;
@@ -36,5 +37,7 @@ public interface AstTreeVisitorContext {
   String getFileKey();
 
   File getFile();
+
+  SymbolModel getSymbolModel();
 
 }
