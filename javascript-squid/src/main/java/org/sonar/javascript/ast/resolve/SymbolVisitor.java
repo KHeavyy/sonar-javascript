@@ -19,13 +19,7 @@
  */
 package org.sonar.javascript.ast.resolve;
 
-import java.util.List;
-
 import org.sonar.javascript.ast.visitors.BaseTreeVisitor;
-import org.sonar.javascript.model.implementations.declaration.MethodDeclarationTreeImpl;
-import org.sonar.javascript.model.implementations.declaration.ParameterListTreeImpl;
-import org.sonar.javascript.model.implementations.statement.CatchBlockTreeImpl;
-import org.sonar.javascript.model.implementations.statement.VariableDeclarationTreeImpl;
 import org.sonar.javascript.model.interfaces.Tree;
 import org.sonar.javascript.model.interfaces.declaration.FunctionDeclarationTree;
 import org.sonar.javascript.model.interfaces.declaration.MethodDeclarationTree;
@@ -35,12 +29,12 @@ import org.sonar.javascript.model.interfaces.expression.ClassTree;
 import org.sonar.javascript.model.interfaces.expression.FunctionExpressionTree;
 import org.sonar.javascript.model.interfaces.expression.IdentifierTree;
 import org.sonar.javascript.model.interfaces.statement.CatchBlockTree;
-import org.sonar.javascript.model.interfaces.statement.VariableDeclarationTree;
+import org.sonar.javascript.model.interfaces.statement.ForOfStatementTree;
 
 public class SymbolVisitor extends BaseTreeVisitor {
 
   private SymbolModel symbolModel;
-  private SymbolModel.Scope currentScope;
+  private Scope currentScope;
 
   public SymbolVisitor(SymbolModel symbolModel) {
     this.symbolModel = symbolModel;
@@ -49,118 +43,114 @@ public class SymbolVisitor extends BaseTreeVisitor {
 
   @Override
   public void visitScript(ScriptTree tree) {
-    newScope(tree);
+    // First pass to record symbol declarations
+    new SymbolDeclarationVisitor(symbolModel).visitScript(tree);
+
+    enterScope(tree);
+    // Record usage and implicit symbol declarations
     super.visitScript(tree);
     leaveScope();
   }
 
   @Override
   public void visitClassDeclaration(ClassTree tree) {
-    addSymbol(tree.name().name(), tree);
-    newScope(tree);
-
+    enterScope(tree);
     super.visitClassDeclaration(tree);
     leaveScope();
   }
 
   @Override
   public void visitMethodDeclaration(MethodDeclarationTree tree) {
-    addSymbol(((MethodDeclarationTreeImpl) tree).nameToString(), tree);
-    newScope(tree);
-    addSymbols(((ParameterListTreeImpl) tree.parameters()).parameterIdentifiers());
-
+    enterScope(tree);
     super.visitMethodDeclaration(tree);
     leaveScope();
   }
 
   @Override
   public void visitCatchBlock(CatchBlockTree tree) {
-    newScope(tree);
-    addSymbols(((CatchBlockTreeImpl) tree).parameterIdentifiers());
-
+    enterScope(tree);
     super.visitCatchBlock(tree);
     leaveScope();
   }
 
   @Override
   public void visitFunctionDeclaration(FunctionDeclarationTree tree) {
-    addSymbol(tree.name().name(), tree);
-    newScope(tree);
-    addSymbols(((ParameterListTreeImpl) tree.parameters()).parameterIdentifiers());
-
+    enterScope(tree);
     super.visitFunctionDeclaration(tree);
     leaveScope();
   }
 
-  /**
-   * Detail about <a href="http://people.mozilla.org/~jorendorff/es6-draft.html#sec-function-definitions-runtime-semantics-evaluation">Function Expression scope</a>
-   * <blockquote>
-   *  The BindingIdentifier in a FunctionExpression can be referenced from inside the FunctionExpression's FunctionBody
-   *  to allow the function to call itself recursively. However, unlike in a FunctionDeclaration, the BindingIdentifier
-   *  in a FunctionExpression cannot be referenced from and does not affect the scope enclosing the FunctionExpression.
-   *</blockquote>
-   **/
   @Override
   public void visitFunctionExpression(FunctionExpressionTree tree) {
-    newScope(tree);
-    if (tree.name() != null) {
-      // Not available in enclosing scope
-      addSymbol(tree.name().name(), tree);
-    }
-    addSymbols(((ParameterListTreeImpl) tree.parameters()).parameterIdentifiers());
-
+    enterScope(tree);
     super.visitFunctionExpression(tree);
     leaveScope();
   }
 
+  /**
+   * When an assignment is done to a symbol that has not been declared before,
+   * a global variable is created with the left-hand side identifier as name.
+   */
+  @Override
+  public void visitAssignmentExpression(AssignmentExpressionTree tree) {
+    if (tree.variable() instanceof IdentifierTree) {
+      IdentifierTree identifier = (IdentifierTree) tree.variable();
+
+      if (!addUsageFor(identifier)) {
+        createSymbolForScope(identifier.name(), identifier, currentScope.globalScope());
+      }
+    }
+  }
+
+  @Override
+  public void visitIdentifier(IdentifierTree tree) {
+    if (tree.is(Tree.Kind.IDENTIFIER_REFERENCE)) {
+      addUsageFor(tree);
+    }
+  }
+
+  @Override
+  public void visitForOfStatement(ForOfStatementTree tree) {
+    if (tree.expression() instanceof IdentifierTree) {
+      IdentifierTree identifier = (IdentifierTree) tree.expression();
+
+      if (!addUsageFor(identifier)) {
+        createSymbolForScope(identifier.name(), identifier, currentScope.globalScope());
+      }
+    }
+  }
+
+  /*
+   * HELPERS
+   */
   private void leaveScope() {
     if (currentScope != null) {
       currentScope = currentScope.outer();
     }
   }
 
-  @Override
-  public void visitVariableDeclaration(VariableDeclarationTree tree) {
-    addSymbols(((VariableDeclarationTreeImpl) tree).variableIdentifiers());
-    super.visitVariableDeclaration(tree);
-
+  private void createSymbolForScope(String name, Tree tree, Scope scope) {
+    Symbol symbol = scope.createSymbol(name, tree);
+    symbolModel.setScopeForSymbol(symbol, scope);
+    symbolModel.setScopeFor(tree, scope);
   }
 
-  // TODO: when in a function, is global var if identifier not declared before
-  @Override
-  public void visitAssignmentExpression(AssignmentExpressionTree tree) {
-    super.visitAssignmentExpression(tree);
+  private void enterScope(Tree tree) {
+    currentScope = symbolModel.getScopeFor(tree);
   }
 
-  /*
-   * HELPERS
+  /**
+   * @return true if symbol found and usage recorded, false otherwise.
    */
+  private boolean addUsageFor(IdentifierTree identifier) {
+    Symbol symbol = currentScope.lookupSymbol(identifier.name());
 
-  private void setScopeForTree(Tree tree) {
-    symbolModel.setScopeFor(tree, currentScope);
-  }
-
-  private void addSymbol(String name, Tree tree) {
-    currentScope.addSymbolToScope(name, tree);
-    setScopeForTree(tree);
-  }
-
-  private void addSymbols(List<IdentifierTree> identifiers) {
-    for (IdentifierTree identifier : identifiers) {
-      currentScope.addSymbolToScope(identifier.name(), identifier);
-      setScopeForTree(identifier);
-    }
-  }
-
-  private void newScope(Tree tree) {
-    SymbolModel.Scope newScope = new SymbolModel.Scope(currentScope);
-
-    if (currentScope != null) {
-      currentScope.setNext(newScope);
+    if (symbol != null) {
+      symbolModel.addUsage(symbol, identifier);
+      return true;
     }
 
-    currentScope = newScope;
-    setScopeForTree(tree);
+    return false;
   }
 
 }

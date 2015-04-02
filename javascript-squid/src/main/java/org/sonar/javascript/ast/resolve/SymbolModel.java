@@ -20,20 +20,22 @@
 package org.sonar.javascript.ast.resolve;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import org.sonar.javascript.model.interfaces.Tree;
 import org.sonar.javascript.model.interfaces.declaration.ScriptTree;
+import org.sonar.javascript.model.interfaces.expression.IdentifierTree;
 
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 
 public class SymbolModel {
 
-  private final Map<Tree, Scope> scopes = Maps.newHashMap();
+  private Map<Tree, Scope> scopes = Maps.newHashMap();
+  private Map<Symbol, Scope> symbolScope = Maps.newHashMap();
+  private Multimap<Symbol, IdentifierTree> usagesTree = HashMultimap.create();
+  private Map<IdentifierTree, Symbol> refersTo = Maps.newHashMap();
 
   public static SymbolModel createFor(ScriptTree script) {
     SymbolModel symbolModel = new SymbolModel();
@@ -51,83 +53,17 @@ public class SymbolModel {
     return scopes.get(tree);
   }
 
-  public static class Scope {
-
-    private Scope outer;
-    protected Map<String, Symbol> symbols = Maps.newHashMap();
-    // FIXME martin: shouldn't it be named inner ?
-    private Scope next;
-
-    public Scope(Scope outer) {
-      this.outer = outer;
-    }
-
-    public Scope outer() {
-      return outer;
-    }
-
-    public Scope next() {
-      return next;
-    }
-
-    public void setNext(Scope next) {
-      this.next = next;
-    }
-
-    /**
-     * Add the symbol to the current scope.
-     */
-    public void addSymbolToScope(String name, Tree tree) {
-      Symbol redefinedSymbol =  symbols.get(name);
-
-      if (redefinedSymbol != null) {
-        redefinedSymbol.declarations().add(tree);
-
-      } else {
-        symbols.put(name, new Symbol(name, tree));
-      }
-    }
-
-    public Symbol lookupSymbol(String name) {
-      Scope scope = this;
-      while (scope != null && !scope.symbols.containsKey(name)) {
-        scope = scope.outer;
-      }
-      return scope == null ? null : scope.symbols.get(name);
-    }
-
-    public Collection<Symbol> allSymbols() {
-      return symbols.values();
-    }
-
-    public Scope globalScope() {
-      Scope scope = this;
-
-      while (scope.outer != null) {
-        scope = scope.outer;
-      }
-
-      return scope;
-    }
+  public void setScopeForSymbol(Symbol symbol, Scope scope) {
+    symbolScope.put(symbol, scope);
   }
 
-  public static class Symbol {
-    private final String name;
-    private List<Tree> declarations = Lists.newArrayList();
+  public Collection<IdentifierTree> getUsageFor(Symbol symbol) {
+    return usagesTree.get(symbol);
+  }
 
-    public Symbol(String name, Tree declaration) {
-      this.name = name;
-      this.declarations.add(declaration);
-    }
-
-    public String name() {
-      return name;
-    }
-
-    public List<Tree> declarations() {
-      return declarations;
-    }
-
+  public void addUsage(Symbol symbol, IdentifierTree tree) {
+    usagesTree.put(symbol, tree);
+    refersTo.put(tree, symbol);
   }
 
 }

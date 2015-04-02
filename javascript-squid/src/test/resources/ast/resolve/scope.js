@@ -12,7 +12,7 @@ function f (p) {
   c = 1;  // implicit declaration - global scope
 
   /**
-   *  FUNCTION SCOPE: x
+   *  FUNCTION SCOPE: g, a, x
    */
   var b = function g() {
     var x;
@@ -21,3 +21,13 @@ function f (p) {
   }
 
 }
+
+/**
+ *  CATCH SCOPE: e, a
+ */
+try {
+
+} catch (e) {
+  var a;
+}
+

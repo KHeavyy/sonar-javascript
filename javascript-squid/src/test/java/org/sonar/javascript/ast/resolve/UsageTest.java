@@ -23,6 +23,7 @@ import static org.fest.assertions.Assertions.assertThat;
 import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
+import java.util.Collection;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -34,59 +35,51 @@ import org.sonar.javascript.model.interfaces.declaration.ScriptTree;
 import org.sonar.javascript.model.interfaces.expression.FunctionExpressionTree;
 
 import com.sonar.sslr.api.AstNode;
+import org.sonar.javascript.model.interfaces.expression.IdentifierTree;
 import org.sonar.javascript.model.interfaces.statement.CatchBlockTree;
 
-public class ScopeTest extends JavaScriptTreeModelTest {
+public class UsageTest extends JavaScriptTreeModelTest {
 
   private AstNode ROOT_NODE;
   private SymbolModel SYMBOL_MODEL;
 
   @Before
   public void setUp() throws Exception {
-    ROOT_NODE = p.parse(new File("src/test/resources/ast/resolve/scope.js"));
+    ROOT_NODE = p.parse(new File("src/test/resources/ast/resolve/usage.js"));
     SYMBOL_MODEL = SymbolModel.createFor((ScriptTree) ROOT_NODE);
   }
 
   @Test
-  public void global_scope() throws Exception {
-    Scope globalScope = SYMBOL_MODEL.getScopeFor((ScriptTree) ROOT_NODE);
+  public void global_symbols() throws Exception {
+    Scope scriptScope = SYMBOL_MODEL.getScopeFor((ScriptTree) ROOT_NODE);
+    assertThat(usagesFor("a", scriptScope)).hasSize(2);
+    assertThat(usagesFor("b", scriptScope)).hasSize(1);
+    assertThat(usagesFor("f", scriptScope)).hasSize(2);
 
-    assertNotNull(globalScope.lookupSymbol("a"));
-    assertNotNull(globalScope.lookupSymbol("f"));
-
-    // Implicit global declaration: without the "var" keyword
-    assertNotNull(globalScope.lookupSymbol("b"));
-    assertNotNull(globalScope.lookupSymbol("c"));
   }
 
   @Test
-  public void function_scope() throws Exception {
+  public void function_symbols() throws Exception {
     Scope functionScope = SYMBOL_MODEL.getScopeFor((FunctionDeclarationTree) ROOT_NODE.getFirstDescendant(Tree.Kind.FUNCTION_DECLARATION));
-
-    assertNotNull(functionScope.lookupSymbol("p"));
-    assertNotNull(functionScope.lookupSymbol("a"));
-    assertNotNull(functionScope.lookupSymbol("b"));
+    assertThat(usagesFor("p1", functionScope)).hasSize(1);
+    assertThat(usagesFor("p2", functionScope)).isEmpty();
+    assertThat(usagesFor("b", functionScope)).hasSize(2);
   }
 
   @Test
-  public void function_expression_scope() throws Exception {
+  public void function_expression_symbols() throws Exception {
     Scope functionExprScope = SYMBOL_MODEL.getScopeFor((FunctionExpressionTree) ROOT_NODE.getFirstDescendant(Tree.Kind.FUNCTION_EXPRESSION));
-
-    assertNotNull(functionExprScope.lookupSymbol("a"));
-
-    // redeclared variable
-    assertNotNull(functionExprScope.lookupSymbol("x"));
-    assertThat(functionExprScope.lookupSymbol("x").declarations()).hasSize(2);
-    assertThat(((JavaScriptTree) functionExprScope.lookupSymbol("x").declarations().get(0)).getTokenLine()).isEqualTo(18);
-    assertThat(((JavaScriptTree) functionExprScope.lookupSymbol("x").declarations().get(1)).getTokenLine()).isEqualTo(20);
+    assertThat(usagesFor("g", functionExprScope)).hasSize(1);
   }
 
   @Test
-  public void catch_block_scope() throws Exception {
+  public void catch_block_symbols() throws Exception {
     Scope catchScope = SYMBOL_MODEL.getScopeFor((CatchBlockTree) ROOT_NODE.getFirstDescendant(Tree.Kind.CATCH_BLOCK));
-
-    assertNotNull(catchScope.lookupSymbol("e"));
-    assertNotNull(catchScope.lookupSymbol("a"));
-
+    assertThat(usagesFor("e", catchScope)).hasSize(1);
   }
+
+  public Collection<IdentifierTree> usagesFor(String name, Scope scope) {
+    return SYMBOL_MODEL.getUsageFor(scope.lookupSymbol(name));
+  }
+
 }
